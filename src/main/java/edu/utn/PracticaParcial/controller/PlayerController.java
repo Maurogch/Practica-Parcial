@@ -7,9 +7,11 @@ import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -76,10 +78,33 @@ public class PlayerController {
     }
 
     @GetMapping("/{id}")
+    @ResponseStatus(HttpStatus.OK)
     public PlayerDTO getById(@PathVariable("id") Integer id){
         Player player = playerRepository.findById(id).orElseThrow(() -> new HttpClientErrorException(HttpStatus.NOT_FOUND, "Player not found"));
 
         return convertToDto(player);
+    }
+
+    @PutMapping("")
+    @ResponseStatus(HttpStatus.ACCEPTED)
+    public void update(PlayerDTO playerDTO){
+        try {
+            Player player = convertToEntity(playerDTO);
+            playerRepository.save(player);
+        } catch (ParseException e) {
+            throw new HttpClientErrorException(HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    @DeleteMapping("")
+    @ResponseStatus(HttpStatus.ACCEPTED)
+    public void delete(PlayerDTO playerDTO){
+        try {
+            Player player = convertToEntity(playerDTO);
+            playerRepository.delete(player);
+        } catch (ParseException e) {
+            throw new HttpClientErrorException(HttpStatus.INTERNAL_SERVER_ERROR);
+        }
     }
 
     private PlayerDTO convertToDto(Player player){
