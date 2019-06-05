@@ -4,8 +4,11 @@ import edu.utn.PracticaParcial.model.Player;
 import edu.utn.PracticaParcial.model.PlayerDTO;
 import edu.utn.PracticaParcial.repository.PlayerRepository;
 import org.modelmapper.ModelMapper;
+import org.modelmapper.PropertyMap;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -35,6 +38,7 @@ public class PlayerController {
     @Autowired
     private PlayerRepository playerRepository;
     @Autowired
+    @Qualifier("ModelMapperPlayer")
     private ModelMapper modelMapper;
 
     /*Post non DTO
@@ -56,7 +60,9 @@ public class PlayerController {
             Player player = convertToEntity(playerDTO);
             playerRepository.save(player);
         } catch (ParseException e) {
-            throw new HttpClientErrorException(HttpStatus.INTERNAL_SERVER_ERROR);
+            throw new HttpClientErrorException(HttpStatus.INTERNAL_SERVER_ERROR, "Error transforming DTO");
+        } catch (DataIntegrityViolationException e){
+            throw new HttpClientErrorException(HttpStatus.INTERNAL_SERVER_ERROR, "Error with data integrity");
         }
     }
 
@@ -116,10 +122,24 @@ public class PlayerController {
     }
 
     private PlayerDTO convertToDto(Player player){
+        modelMapper.addMappings(new PropertyMap<Player, PlayerDTO>() {
+            @Override
+            protected void configure() {
+                map().setPlayerName(source.getName());
+                map().setTeamName(source.getTeam().getName());
+            }
+        });
         return modelMapper.map(player, PlayerDTO.class);
     }
 
     private Player convertToEntity(PlayerDTO playerDTO) throws ParseException{
+        modelMapper.addMappings(new PropertyMap<PlayerDTO, Player>() {
+            @Override
+            protected void configure() {
+                map().setName(source.getPlayerName());
+                map().getTeam().setName(source.getTeamName());
+            }
+        });
         return modelMapper.map(playerDTO, Player.class);
     }
 }
