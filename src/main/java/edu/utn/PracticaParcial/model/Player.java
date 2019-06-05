@@ -14,8 +14,10 @@ import javax.persistence.GeneratedValue;
 import javax.persistence.Id;
 import javax.persistence.JoinColumn;
 import javax.persistence.ManyToOne;
+import javax.validation.Valid;
 import javax.validation.constraints.Max;
 import javax.validation.constraints.Min;
+import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotEmpty;
 import javax.validation.constraints.NotNull;
 //validation should ask for validation dependency, currently not in pom, so it must be a subdependency of another
@@ -32,11 +34,11 @@ public class Player {
     @Min(value = 18, message = "La edad debe ser mayor a 18")
     @Max(value = 50, message = "La edad no debe ser mayor a 50")
     private Integer age;
-    @ManyToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
+    @ManyToOne(fetch = FetchType.LAZY)
     @OnDelete(action = OnDeleteAction.CASCADE)
     @JoinColumn(name = "id_equipo", referencedColumnName = "id")
     @JsonBackReference
-    //@NotNull(message = "Player submited without team")
-    @NotEmpty(message = "Player submited without team") //Not null or empty
+    @NotNull(message = "Player submited without team") //Not null
+    @Valid //This is requiered here to check validations inside team, otherwise jpa exeption and rollback thrown
     private Team team;
 }

@@ -3,6 +3,7 @@ package edu.utn.PracticaParcial.controller;
 import edu.utn.PracticaParcial.model.Player;
 import edu.utn.PracticaParcial.model.PlayerDTO;
 import edu.utn.PracticaParcial.repository.PlayerRepository;
+import edu.utn.PracticaParcial.repository.TeamRepository;
 import org.modelmapper.ModelMapper;
 import org.modelmapper.PropertyMap;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,6 +21,8 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.client.HttpClientErrorException;
@@ -31,6 +34,8 @@ import java.util.stream.Collectors;
 
 import static java.util.Objects.isNull;
 
+//Crud with validations and exception handling
+//https://www.javaguides.net/2018/09/spring-boot-crud-rest-apis-validation-example.html
 
 @RestController
 @RequestMapping("/player")
@@ -38,21 +43,35 @@ public class PlayerController {
     @Autowired
     private PlayerRepository playerRepository;
     @Autowired
+    private TeamRepository teamRepository;
+    @Autowired
     @Qualifier("ModelMapperPlayer")
     private ModelMapper modelMapper;
 
-    /*Post non DTO
-    @PostMapping("")
-    @ResponseStatus(HttpStatus.CREATED)
-    public void add(@RequestBody @Valid Player player){
-        playerRepository.save(player);
-    }*/
-
+    //Returns userAgent string from where the request was made from
     @GetMapping("/header")
     public String getUserAgent(@RequestHeader("User-Agent") String userAgent) {
         return userAgent;
     }
 
+    @PostMapping("")
+    @ResponseStatus(HttpStatus.CREATED)
+    public void add(@RequestBody @Valid Player player){
+        try {
+            //Having problems without manually saving team beforehand (integrity, TransientPropertyValueExeption:Not-null property references a transient value)
+            if(isNull(player.getTeam().getId()))
+                throw new HttpClientErrorException(HttpStatus.BAD_REQUEST, "Team id can't be null");
+            if(!teamRepository.findById(player.getTeam().getId()).isPresent())
+                teamRepository.save(player.getTeam());
+
+            playerRepository.save(player);
+            //Validations done with javax validation
+        } catch (DataIntegrityViolationException e){
+            throw new HttpClientErrorException(HttpStatus.INTERNAL_SERVER_ERROR, "Error with data integrity");
+        }
+    }
+
+    /*Post with DTO (not necessary for the exam)
     @PostMapping("")
     @ResponseStatus(HttpStatus.CREATED)
     public void add(@RequestBody @Valid PlayerDTO playerDTO){
@@ -64,41 +83,59 @@ public class PlayerController {
         } catch (DataIntegrityViolationException e){
             throw new HttpClientErrorException(HttpStatus.INTERNAL_SERVER_ERROR, "Error with data integrity");
         }
-    }
-
-    /*Get non DTO
-    @GetMapping("")
-    @ResponseStatus(HttpStatus.OK)
-    public List<Player> getAll(){
-        List<Player> players = playerRepository.findAll();
-
-        if(!players.isEmpty())
-            return players;
-        else
-            throw new HttpClientErrorException(HttpStatus.NO_CONTENT);
     }*/
 
     @GetMapping("")
     @ResponseStatus(HttpStatus.OK)
-    public List<PlayerDTO> getAll(){
-        List<Player> players = playerRepository.findAll();
+    public ResponseEntity<List<PlayerDTO>> getAll(){
+        try {
+            List<Player> players = playerRepository.findAll();
+            List<PlayerDTO> playersDto = players.stream()
+                    .map(player -> convertToDto(player))
+                    .collect(Collectors.toList());
 
-        if(!players.isEmpty())
-            return players.stream()
-                .map(player -> convertToDto(player))
-                .collect(Collectors.toList());
-        else
-            throw new HttpClientErrorException(HttpStatus.NO_CONTENT);
+            if(!players.isEmpty())
+                return ResponseEntity.ok(playersDto);
+            else
+                return ResponseEntity.status(HttpStatus.NO_CONTENT).body(playersDto);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    //Example= localhost:8080/player/?teamName="Yupanki"
+    //Could also (better) be done with team id
+    //  Problem: Doesn't let you have two GetMappings empty (same name)
+    //  Solution: Use RequestMapping, with different params
+    @RequestMapping(value = "", method = RequestMethod.GET, params = "teamName")
+    @ResponseStatus(HttpStatus.OK)
+    public ResponseEntity<List<PlayerDTO>> getByTeamName(@RequestParam String teamName){
+        try {
+            //invoque custom query
+            List<Player> players = playerRepository.getAllByTeamName(teamName);
+            List<PlayerDTO> playersDto = players.stream()
+                    .map(player -> convertToDto(player))
+                    .collect(Collectors.toList());
+
+            if(!players.isEmpty())
+                return ResponseEntity.ok(playersDto);
+            else
+                return ResponseEntity.status(HttpStatus.NO_CONTENT).body(playersDto);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
     }
 
     @GetMapping("/{id}")
     @ResponseStatus(HttpStatus.OK)
     public PlayerDTO getById(@PathVariable("id") Integer id){
-        Player player = playerRepository.findById(id).orElseThrow(() -> new HttpClientErrorException(HttpStatus.NOT_FOUND, "Player not found"));
+        //Returning bad request if pathvariable is not an integer
+        Player player = playerRepository.findById(id).orElseThrow(() -> new HttpClientErrorException(HttpStatus.NOT_FOUND, String.format("Player not found for id: %s", id)));
 
         return convertToDto(player);
     }
 
+    /*With DTO
     @PutMapping("")
     @ResponseStatus(HttpStatus.ACCEPTED)
     public void update(PlayerDTO playerDTO){
@@ -108,38 +145,30 @@ public class PlayerController {
         } catch (ParseException e) {
             throw new HttpClientErrorException(HttpStatus.INTERNAL_SERVER_ERROR);
         }
+    }*/
+
+    @PutMapping("/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void update(@PathVariable("id") Integer id){
+        Player player = playerRepository.findById(id).orElseThrow(() -> new HttpClientErrorException(HttpStatus.NOT_FOUND, String.format("Player not found for id: %s", id)));
+
+        playerRepository.save(player);
     }
 
-    @DeleteMapping("")
-    @ResponseStatus(HttpStatus.ACCEPTED)
-    public void delete(PlayerDTO playerDTO){
-        try {
-            Player player = convertToEntity(playerDTO);
-            playerRepository.delete(player);
-        } catch (ParseException e) {
-            throw new HttpClientErrorException(HttpStatus.INTERNAL_SERVER_ERROR);
-        }
+    @DeleteMapping("/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void delete(@PathVariable("id") Integer id){
+        Player player = playerRepository.findById(id).orElseThrow(() -> new HttpClientErrorException(HttpStatus.NOT_FOUND, String.format("Player not found for id: %s", id)));
+
+        playerRepository.delete(player);
     }
 
     private PlayerDTO convertToDto(Player player){
-        modelMapper.addMappings(new PropertyMap<Player, PlayerDTO>() {
-            @Override
-            protected void configure() {
-                map().setPlayerName(source.getName());
-                map().setTeamName(source.getTeam().getName());
-            }
-        });
         return modelMapper.map(player, PlayerDTO.class);
     }
 
+    //Not necessary for the exam
     private Player convertToEntity(PlayerDTO playerDTO) throws ParseException{
-        modelMapper.addMappings(new PropertyMap<PlayerDTO, Player>() {
-            @Override
-            protected void configure() {
-                map().setName(source.getPlayerName());
-                map().getTeam().setName(source.getTeamName());
-            }
-        });
         return modelMapper.map(playerDTO, Player.class);
     }
 }

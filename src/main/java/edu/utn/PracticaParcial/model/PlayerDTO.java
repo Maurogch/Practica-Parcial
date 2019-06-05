@@ -6,12 +6,16 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import javax.validation.constraints.NotEmpty;
+
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
 public class PlayerDTO {
-    private Integer id;
+    //private Integer id;
+    @NotEmpty //Works in strings, checks not null and not empty
     private String playerName;
+    @NotEmpty
     private String teamName;
     private Integer playerAge;
 
