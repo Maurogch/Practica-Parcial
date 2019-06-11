@@ -1,5 +1,6 @@
 package edu.utn.PracticaParcial.controller;
 
+import edu.utn.PracticaParcial.inteface.CantJugxE;
 import edu.utn.PracticaParcial.model.Player;
 import edu.utn.PracticaParcial.model.Team;
 import edu.utn.PracticaParcial.repository.TeamRepository;
@@ -61,5 +62,10 @@ public class TeamController {
             return ResponseEntity.ok(team.getPlayers());
         else
             return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/testProjection")
+    public List<CantJugxE> getAllWithCant(){
+        return teamRepository.getAllWithPlayerQuantity();
     }
 }
