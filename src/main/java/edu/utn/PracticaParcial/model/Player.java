@@ -11,6 +11,7 @@ import javax.persistence.CascadeType;
 import javax.persistence.Entity;
 import javax.persistence.FetchType;
 import javax.persistence.GeneratedValue;
+import javax.persistence.GenerationType;
 import javax.persistence.Id;
 import javax.persistence.JoinColumn;
 import javax.persistence.ManyToOne;
@@ -30,7 +31,7 @@ import javax.validation.constraints.NotNull;
 @Table(name = "players")
 public class Player {
     @Id
-    @GeneratedValue
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;
     private String name;
     @Min(value = 18, message = "La edad debe ser mayor a 18")
@@ -38,7 +39,7 @@ public class Player {
     private Integer age;
     @ManyToOne(fetch = FetchType.LAZY)
     @OnDelete(action = OnDeleteAction.CASCADE)
-    @JoinColumn(name = "idTeam", referencedColumnName = "id")
+    @JoinColumn(name = "id_team", referencedColumnName = "id")
     @JsonBackReference
     @NotNull(message = "Player submited without team") //Not null
     @Valid //This is requiered here to check validations inside team, otherwise jpa exeption and rollback thrown

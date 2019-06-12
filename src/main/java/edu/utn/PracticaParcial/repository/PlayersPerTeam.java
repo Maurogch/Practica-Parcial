@@ -1,10 +1,10 @@
-package edu.utn.PracticaParcial.inteface;
+package edu.utn.PracticaParcial.repository;
 
 import org.springframework.beans.factory.annotation.Value;
 
-public interface CantJugxE {
-    String getNombre();
-    Integer getCantidad();
+public interface PlayersPerTeam {
+    String getName();
+    Integer getQuantity();
 
     /*if not using "as cantidad" in query
     @Value("{target.cant_jug}")

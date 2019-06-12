@@ -1,8 +1,10 @@
 package edu.utn.PracticaParcial.controller;
 
-import edu.utn.PracticaParcial.inteface.CantJugxE;
+import edu.utn.PracticaParcial.model.PlayersPerTeamDTO;
+import edu.utn.PracticaParcial.repository.PlayersPerTeam;
 import edu.utn.PracticaParcial.model.Player;
 import edu.utn.PracticaParcial.model.Team;
+import edu.utn.PracticaParcial.repository.PlayersPerTeamRepository;
 import edu.utn.PracticaParcial.repository.TeamRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -11,7 +13,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -28,9 +29,11 @@ import static java.util.Objects.nonNull;
 public class TeamController {
     @Autowired
     private TeamRepository teamRepository;
+    @Autowired
+    private PlayersPerTeamRepository playersPerTeamRepository;
 
     @PostMapping("")
-    @ResponseStatus(HttpStatus.OK)
+    @ResponseStatus(HttpStatus.CREATED)
     public void add(@RequestBody @Valid Team team) {
         try {
             if (nonNull(teamRepository.findByName(team.getName())))
@@ -64,8 +67,15 @@ public class TeamController {
             return ResponseEntity.noContent().build();
     }
 
-    @GetMapping("/testProjection")
-    public List<CantJugxE> getAllWithCant(){
+    @GetMapping("/testProjection") //Native projection
+    public List<PlayersPerTeam> getAllWithCant(){
         return teamRepository.getAllWithPlayerQuantity();
+    }
+
+    @GetMapping("/playersQuantity")
+    public List<PlayersPerTeamDTO> getAllWithPlayerQuantity(){
+        List<PlayersPerTeamDTO> list = playersPerTeamRepository.getTeamsWithPlayerQuantity();
+        list.add(new PlayersPerTeamDTO("Team added in API", 99)); // Now we can modify the data before sending it
+        return list;
     }
 }
